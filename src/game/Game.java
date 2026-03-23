@@ -4,17 +4,66 @@ public class Game {
 	
 	private int[][] gameBoard; //this will have the bomb locations and nums stored in it using the below methods
 	private Cell[][] cell;
-    private boolean won = true;
+    private boolean won;
     private int numOfMines;
     private int flagLimit;
     private boolean gameOver;
+    private long startTime;
+    
+    public boolean getGameOver(){ return gameOver; }
+    public int getFlagLimit(){ return flagLimit; }
+    public int getBoardSize(){ return gameBoard.length; }
+    public int getCellValue(int row, int col){ return gameBoard[row][col]; }
+    public boolean isCellClicked(int row, int col){ return cell[row][col].getClicked(); }
+    public boolean isCellFlagged(int row, int col){ return cell[row][col].getFlagged(); }
+    public long getElapsedSeconds(){ return (System.currentTimeMillis() - startTime) / 1000; }
+    
+    public boolean clickCell(int row, int col){
+        if (gameOver || won) return false;
+        if (!checkSpot(row, col)) return false;
+        if (cell[row][col].getFlagged()) return false;
+        if (cell[row][col].getClicked()) return false;
+        
+        if (gameBoard[row][col] == 9){
+            setBombsToClicked();
+            return true;
+        }
+        
+        floodFill(row, col);
+        checkFlags();
+        checkWin();
+        return false;
+    }
+    
+    public void toggleFlag(int row, int col){
+        if (gameOver || won) return;
+        if (!checkSpot(row, col)) return;
+        if (cell[row][col].getClicked()) return;
+        
+        if (cell[row][col].getFlagged()){
+            cell[row][col].setFlagged(false);
+            flagLimit++;
+        } else {
+            if (flagLimit <= 0) return;
+            cell[row][col].setFlagged(true);
+            flagLimit--;
+        }
+    }
     
     public Game(){
     	this.gameBoard = new int[16][16]; //nums here can change depending on how big we want the board to be, maybe make it a variable thats passed through the constructor
-    	this.cell = new Cell[gameBoard.length][gameBoard.length];
+    	this.cell = new Cell[gameBoard.length][gameBoard[0].length];
     	this.numOfMines = 41; //this can also be whatever/be changed 
     	this.flagLimit = this.numOfMines; //needs to be same, minus 1 whenever a flag is placed, if at 0 cant place any more flags
     	this.gameOver = false;
+    	
+    	this.gameOver = false;
+        this.won = false;
+
+        initializeBooleans(this.cell);
+        setRandomBombs(this.gameBoard, this.numOfMines);
+        updateGameBoard(this.gameBoard);
+        this.startTime = System.currentTimeMillis();
     	
     }//end Game constructor
 
@@ -23,7 +72,7 @@ public class Game {
     public void initializeBooleans(Cell tempArray[][]){ //sets all the cells in the 2D array to have false values so you can use them later
         for (int i = 0; i < tempArray.length; i++) {
             for (int j = 0; j < tempArray[0].length; j++) { 
-            	cell[i][j] = new Cell(false, false);
+            	tempArray[i][j] = new Cell(false, false);
             }
         }
     }//end initializeBooleans
@@ -44,7 +93,7 @@ public class Game {
     public void checkFlags(){ //makes sure you don't have a flag on a clicked square
         for (int row = 0; row < this.cell.length; row ++){
             for (int col = 0; col < this.cell[0].length; col ++){
-                if (this.cell[row][col].getFlagged() == true && this.cell[row][col].getClicked() == true){ //if a square is clicked and flagged at the same time
+                if (this.cell[row][col].getFlagged() && this.cell[row][col].getClicked()){ //if a square is clicked and flagged at the same time
                     this.cell[row][col].setFlagged(false); //remove the flag
                     this.flagLimit += 1;
                 }
@@ -54,22 +103,15 @@ public class Game {
 
     public void checkWin(){ //checks if every square is revealed/every bomb is flagged
         won = true;
-        boolean[][] tempArray = new boolean[this.cell.length][this.cell.length];
-
-        for (int row = 0; row < this.cell.length; row ++){
-            for (int col = 0; col < this.cell[0].length; col ++){
-                if (this.cell[row][col].getClicked() == true && this.gameBoard[row][col] != 9){ //if a square was clicked and its not a bomb
-                    tempArray[row][col] = true;
-                } else if (this.gameBoard[row][col] == 9){ //mark bombs as "true" since you can't click them 
-                    tempArray[row][col] = true;
-                }
-
-                if (tempArray[row][col] == false){ //if after checking each spot, theres an unclicked spot, won = false
+        for (int row = 0; row < this.cell.length; row++){
+            for (int col = 0; col < this.cell[0].length; col++){
+                if (!this.cell[row][col].getClicked() && this.gameBoard[row][col] != 9){
                     won = false;
+                    return;
                 }
-                
             }
         }
+        if (won) gameOver = true;
     }//end checkWin
     
     public void updateGameBoard(int tempArray[][]){ //updates the nums of each square depending on how many bombs are surrounding it
@@ -115,9 +157,8 @@ public class Game {
                     }
                 }
             }
-        } else if (checkSpot(row, col)) { //if its a valid spot but isnt a zero (ex: 1,2,3), then reveal that but don't check its surroundings
-            this.cell[row][col].setClicked(true); //set it to clicked
+        } else if (checkSpot(row, col) && !this.cell[row][col].getClicked() && this.gameBoard[row][col] != 9) {
+            this.cell[row][col].setClicked(true);
         }
     }//end floodFill
-    
 }//end Game class
